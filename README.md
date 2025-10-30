@@ -54,7 +54,7 @@ STEP 0 — PROJECT SETUP
    - dev (development)
 3. Folder structure:
    travel-planner/
-       backend/
+       API/
        frontend/
        .github/workflows/
        infra/
@@ -67,25 +67,49 @@ Goal: Run an ASP.NET Core API locally with Swagger and a /health endpoint, plus 
 
 Commands:
     dotnet new sln -n TravelPlanner
-    dotnet new webapi -n TravelPlanner.API -o backend/TravelPlanner.API
-    dotnet new classlib -n TravelPlanner.Application -o backend/TravelPlanner.Application
-    dotnet new classlib -n TravelPlanner.Domain -o backend/TravelPlanner.Domain
-    dotnet new classlib -n TravelPlanner.Infrastructure -o backend/TravelPlanner.Infrastructure
-    dotnet new xunit -n TravelPlanner.Tests -o backend/TravelPlanner.Tests
-    dotnet sln backend/TravelPlanner.sln add backend/**/**.csproj
+    dotnet new webapi -n TravelPlanner.API -o API/TravelPlanner.API --framework net8.0
+    dotnet new classlib -n TravelPlanner.Application -o API/TravelPlanner.Application --framework net8.0
+    dotnet new classlib -n TravelPlanner.Domain -o API/TravelPlanner.Domain --framework net8.0
+    dotnet new classlib -n TravelPlanner.Infrastructure -o API/TravelPlanner.Infrastructure --framework net8.0
+    dotnet new xunit -n TravelPlanner.Tests -o API/TravelPlanner.Tests --framework net8.0
+    dotnet sln API/TravelPlanner.sln add API/**/**.csproj
 
 Project references:
-    dotnet add backend/TravelPlanner.API/TravelPlanner.API.csproj reference backend/TravelPlanner.Application/TravelPlanner.Application.csproj backend/TravelPlanner.Infrastructure/TravelPlanner.Infrastructure.csproj backend/TravelPlanner.Domain/TravelPlanner.Domain.csproj
-    dotnet add backend/TravelPlanner.Application/TravelPlanner.Application.csproj reference backend/TravelPlanner.Domain/TravelPlanner.Domain.csproj
-    dotnet add backend/TravelPlanner.Infrastructure/TravelPlanner.Infrastructure.csproj reference backend/TravelPlanner.Application/TravelPlanner.Application.csproj backend/TravelPlanner.Domain/TravelPlanner.Domain.csproj
-    dotnet add backend/TravelPlanner.Tests/TravelPlanner.Tests.csproj reference backend/TravelPlanner.API/TravelPlanner.API.csproj
+    dotnet add API/TravelPlanner.API/TravelPlanner.API.csproj reference API/TravelPlanner.Application/TravelPlanner.Application.csproj API/TravelPlanner.Infrastructure/TravelPlanner.Infrastructure.csproj API/TravelPlanner.Domain/TravelPlanner.Domain.csproj
+    dotnet add API/TravelPlanner.Application/TravelPlanner.Application.csproj reference API/TravelPlanner.Domain/TravelPlanner.Domain.csproj
+    dotnet add API/TravelPlanner.Infrastructure/TravelPlanner.Infrastructure.csproj reference API/TravelPlanner.Application/TravelPlanner.Application.csproj API/TravelPlanner.Domain/TravelPlanner.Domain.csproj
+    dotnet add API/TravelPlanner.Tests/TravelPlanner.Tests.csproj reference API/TravelPlanner.API/TravelPlanner.API.csproj
+
+    ✅ Benefits of This Structure
+    🔒 Dependency Rule: Inner layers never depend on outer layers
+    🔄 Testability: Easy to mock external dependencies
+    🛡️ Separation of Concerns: Each layer has a single responsibility
+    🔧 Maintainability: Changes in outer layers don't affect inner ones
+    📦 Domain Independence: Core business logic is framework-agnostic
+
+    TravelPlanner.API references:
+    ├── Application ← Business logic and use cases
+    ├── Infrastructure ← Database and external API implementations  
+    └── Domain ← Core entities for DTOs and validation
+
+    TravelPlanner.Application references:
+    └── Domain ← Needs entities and business rules
+
+    TravelPlanner.Infrastructure references:
+    ├── Application ← Implements interfaces defined here
+    └── Domain ← Needs entities for data mapping
+
+    TravelPlanner.Tests references:
+    └── API ← Tests the complete application through HTTP endpoints
+
+    This is a classic implementation of Clean Architecture (also known as Onion Architecture), where the Domain is at the center and dependencies flow inward, ensuring your business logic remains pure and testable.
 
 NuGet packages:
-    dotnet add backend/TravelPlanner.API package Swashbuckle.AspNetCore
-    dotnet add backend/TravelPlanner.API package Serilog.AspNetCore
-    dotnet add backend/TravelPlanner.Tests package Moq
-    dotnet add backend/TravelPlanner.Tests package FluentAssertions
-    dotnet add backend/TravelPlanner.Tests package Microsoft.AspNetCore.Mvc.Testing
+    dotnet add API/TravelPlanner.API package Swashbuckle.AspNetCore
+    dotnet add API/TravelPlanner.API package Serilog.AspNetCore
+    dotnet add API/TravelPlanner.Tests package Moq
+    dotnet add API/TravelPlanner.Tests package FluentAssertions
+    dotnet add API/TravelPlanner.Tests package Microsoft.AspNetCore.Mvc.Testing
 
 Minimal API Example (Program.cs):
 ---------------------------------
@@ -129,8 +153,8 @@ Validation commands:
 --------------------
     dotnet restore
     dotnet build
-    dotnet test backend/TravelPlanner.Tests
-    dotnet run --project backend/TravelPlanner.API
+    dotnet test API/TravelPlanner.Tests
+    dotnet run --project API/TravelPlanner.API
 
 Documentation:
 --------------
@@ -144,13 +168,13 @@ STEP 2 — DATABASE (NEON + EF CORE)
 Goal: Add persistence for searches and cached results.
 
 Commands:
-    dotnet add backend/TravelPlanner.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL
-    dotnet add backend/TravelPlanner.API package Microsoft.EntityFrameworkCore.Design
+    dotnet add API/TravelPlanner.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL
+    dotnet add API/TravelPlanner.API package Microsoft.EntityFrameworkCore.Design
     dotnet tool install --global dotnet-ef
 
 Setup Secrets:
-    dotnet user-secrets init --project backend/TravelPlanner.API
-    dotnet user-secrets set "ConnectionStrings:Default" "<neon-connection-string>" --project backend/TravelPlanner.API
+    dotnet user-secrets init --project API/TravelPlanner.API
+    dotnet user-secrets set "ConnectionStrings:Default" "<neon-connection-string>" --project API/TravelPlanner.API
 
 Example DbContext:
 ------------------
@@ -260,7 +284,7 @@ name: Deploy API to Azure
 on:
   push:
     branches: [ "main" ]
-    paths: [ "backend/**" ]
+    paths: [ "API/**" ]
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -269,9 +293,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet restore backend/TravelPlanner.sln
-      - run: dotnet build backend/TravelPlanner.sln --configuration Release
-      - run: dotnet publish backend/TravelPlanner.API -c Release -o ./publish
+      - run: dotnet restore API/TravelPlanner.sln
+      - run: dotnet build API/TravelPlanner.sln --configuration Release
+      - run: dotnet publish API/TravelPlanner.API -c Release -o ./publish
       - uses: azure/webapps-deploy@v3
         with:
           app-name: "travel-planner-api"
@@ -342,7 +366,7 @@ Integration tests: WebApplicationFactory in-memory API
 Data tests: EF InMemory or Neon test DB
 
 Run tests:
-    dotnet test backend/TravelPlanner.Tests
+    dotnet test API/TravelPlanner.Tests
 
 --------------------------------------------------
 DOCUMENTATION LINKS
@@ -362,8 +386,8 @@ QUICK START
 Backend:
     dotnet restore
     dotnet build
-    dotnet test backend/TravelPlanner.Tests
-    dotnet run --project backend/TravelPlanner.API
+    dotnet test API/TravelPlanner.Tests
+    dotnet run --project API/TravelPlanner.API
 
 Frontend:
     cd frontend
